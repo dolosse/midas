@@ -5,10 +5,10 @@ author: Caswell Pieters
 date: 18 February 2020
 """
 
-import json
+from json import dumps, loads
 import sys
-import threading
-import yaml
+from threading import Thread
+from yaml import safe_load
 
 from confluent_kafka import Consumer, Producer, KafkaException
 import midas.client
@@ -55,13 +55,13 @@ def midas_info(info):
     feedback = 'test feedback'
 
     # compose feedback message
-    feedback_json = json.dumps({"category": "feedback", "daq": {"run_state": daq_states[run_state - 1],
-                                                                "evt_rate": evt_rate,
-                                                                "kB_rate": kb_rate,
-                                                                "events": events}, "os": feedback})
+    feedback_json = dumps({"category": "feedback", "daq": {"run_state": daq_states[run_state - 1],
+                                                           "evt_rate": evt_rate,
+                                                           "kB_rate": kb_rate,
+                                                           "events": events}, "os": feedback})
 
     # compose error message
-    error_json = json.dumps({"category": "errors", "msg": error})
+    error_json = dumps({"category": "errors", "msg": error})
 
     try:
         # Produce feedback json message
@@ -83,7 +83,7 @@ def midas_info(info):
 def read_yaml_config(conf_dict):
     # read yaml file
     with open('midas_kafka_control.yaml') as yf:
-        config = yaml.safe_load(yf)
+        config = safe_load(yf)
     conf_dict['bootstrap_servers'] = config['kafka']['bootstrap_servers']
     conf_dict['topics'] = [config['kafka']['topics']['control']]
     conf_dict['topic_errors'] = config['kafka']['topics']['errors']
@@ -142,8 +142,8 @@ if __name__ == "__main__":
     client = midas.client.MidasClient("kafka_control", host_name=yaml_conf['host_name'],
                                       expt_name=yaml_conf['expt_name'])
 
-    threading.Thread(target=key_capture_thread, args=(), name='key_capture_thread',
-                     daemon=True).start()
+    Thread(target=key_capture_thread, args=(), name='key_capture_thread',
+           daemon=True).start()
 
     while keep_going:
         midas_info(mid_info)
@@ -157,7 +157,7 @@ if __name__ == "__main__":
             sys.stderr.write('%% %s [%d] at offset %d with key %s:\n' %
                              (msg.topic(), msg.partition(), msg.offset(),
                               str(msg.key())))
-            json_data = json.loads(msg.value())
+            json_data = loads(msg.value())
             control_msg = ControlMessage(json_data)
             control_msg.execute()
 
