@@ -44,15 +44,13 @@ def key_capture_thread():
     keep_going = False
 
 
-def midas_info(equipment):
-    global producer, topic_feedback, topic_errors
-
+def midas_info(info):
     daq_states = ['Stopped', 'Paused', 'Running']
     run_state = client.odb_get('/Runinfo/State', True, False)
     run_number = client.odb_get('/Runinfo/Run number', True, False)
-    events = client.odb_get('/Equipment/' + equipment + '/Statistics/Events sent', True, False)
-    evt_rate = client.odb_get('/Equipment/' + equipment + '/Statistics/Events per sec.', True, False)
-    kb_rate = client.odb_get('/Equipment/' + equipment + '/Statistics/kBytes per sec.', True, False)
+    events = client.odb_get('/Equipment/' + info['midas_equipment'] + '/Statistics/Events sent', True, False)
+    evt_rate = client.odb_get('/Equipment/' + info['midas_equipment'] + '/Statistics/Events per sec.', True, False)
+    kb_rate = client.odb_get('/Equipment/' + info['midas_equipment'] + '/Statistics/kBytes per sec.', True, False)
     error = 'test error'
     feedback = 'test feedback'
 
@@ -67,7 +65,7 @@ def midas_info(equipment):
 
     try:
         # Produce feedback json message
-        producer.produce(topic_feedback, feedback_json, callback=delivery_callback)
+        producer.produce(info['topic_feedback'], feedback_json, callback=delivery_callback)
 
     except BufferError:
         sys.stderr.write('%% Local producer queue is full (%d messages awaiting delivery): try again\n' %
@@ -75,49 +73,80 @@ def midas_info(equipment):
 
     try:
         # Produce error json message
-        producer.produce(topic_errors, error_json, callback=delivery_callback)
+        producer.produce(info['topic_errors'], error_json, callback=delivery_callback)
 
     except BufferError:
         sys.stderr.write('%% Local producer queue is full (%d messages awaiting delivery): try again\n' %
                          len(producer))
 
 
-if __name__ == "__main__":
-    keep_going = True
-
+def read_yaml_config(conf_dict):
     # read yaml file
     with open('midas_kafka_control.yaml') as yf:
         config = yaml.safe_load(yf)
-    bootstrap_servers = config['kafka']['bootstrap_servers']
-    topics = [config['kafka']['topics']['control']]
-    topic_errors = config['kafka']['topics']['errors']
-    topic_feedback = config['kafka']['topics']['feedback']
-    group_id = config['kafka']['group_id']
-    expt_name = config['kafka']['expt_name']
-    host_name = config['kafka']['expt_host']
-    midas_equipment = config['kafka']['midas_equipment']
+    conf_dict['bootstrap_servers'] = config['kafka']['bootstrap_servers']
+    conf_dict['topics'] = [config['kafka']['topics']['control']]
+    conf_dict['topic_errors'] = config['kafka']['topics']['errors']
+    conf_dict['topic_feedback'] = config['kafka']['topics']['feedback']
+    conf_dict['group_id'] = config['kafka']['group_id']
+    conf_dict['expt_name'] = config['kafka']['expt_name']
+    conf_dict['host_name'] = config['kafka']['expt_host']
+    conf_dict['midas_equipment'] = config['kafka']['midas_equipment']
+
+
+if __name__ == "__main__":
+    keep_going = True
+
+    # yaml parameters
+    yaml_conf = {
+        'bootstrap_servers': ' ',
+        'topics': [],
+        'topic_errors': ' ',
+        'topic_feedback': ' ',
+        'group_id': ' ',
+        'expt_name': ' ',
+        'host_name': ' ',
+        'midas_equipment': ' '
+    }
+
+    read_yaml_config(yaml_conf)
+
+    # info dictionary
+    mid_info = {
+        'topic_feedback': yaml_conf['topic_feedback'],
+        'topic_errors': yaml_conf['topic_errors'],
+        'midas_equipment': yaml_conf['midas_equipment']
+    }
 
     # consumer configuration
-    kafka_conf = {'bootstrap.servers': bootstrap_servers, 'group.id': group_id, 'session.timeout.ms': 6000,
-                  'auto.offset.reset': 'latest'}
+    kafka_conf = {'bootstrap.servers': yaml_conf['bootstrap_servers'], 'group.id': yaml_conf['group_id'],
+                  'session.timeout.ms': 6000, 'auto.offset.reset': 'latest'}
 
     # producer configuration
-    kafka_conf_prod = {'bootstrap.servers': bootstrap_servers}
+    kafka_conf_prod = {'bootstrap.servers': yaml_conf['bootstrap_servers']}
 
     # create consumer
     consumer = Consumer(kafka_conf)
-    consumer.subscribe(topics)
+    try:
+        consumer.subscribe(yaml_conf['topics'])
+    except KafkaException:
+        print('Kafka Error in subscribing to consumer topics')
+        sys.exit(1)
+    except RuntimeError:
+        print('Could not subscribe to consumer topics - Consumer closed')
+        sys.exit(1)
 
     # create producer
     producer = Producer(**kafka_conf_prod)
 
-    client = midas.client.MidasClient("kafka_control", host_name=host_name, expt_name=expt_name)
+    client = midas.client.MidasClient("kafka_control", host_name=yaml_conf['host_name'],
+                                      expt_name=yaml_conf['expt_name'])
 
     threading.Thread(target=key_capture_thread, args=(), name='key_capture_thread',
                      daemon=True).start()
 
     while keep_going:
-        midas_info(midas_equipment)
+        midas_info(mid_info)
         msg = consumer.poll(timeout=1.0)
         if msg is None:
             continue
