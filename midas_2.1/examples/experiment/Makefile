@@ -79,7 +79,7 @@ endif
 #-------------------------------------------------------------------
 # The following lines define directories. Adjust if necessary
 #                 
-DRV_DIR   = $(MIDASSYS)/drivers/kernel/khyt1331_26
+DRV_DIR   = $(MIDASSYS)/drivers/camac
 INC_DIR   = $(MIDASSYS)/include
 LIB_DIR   = $(MIDASSYS)/$(OS_DIR)/lib
 SRC_DIR   = $(MIDASSYS)/src
@@ -92,14 +92,14 @@ MODULES   = adcsum.o
 #-------------------------------------------------------------------
 # Hardware driver can be (camacnul, kcs2926, kcs2927, hyt1331)
 #
-DRIVER = camac
+DRIVER = camacnul
 
 #-------------------------------------------------------------------
 # Frontend code name defaulted to frontend in this example.
 # comment out the line and run your own frontend as follow:
 # gmake UFE=my_frontend
 #
-UFE = anach0fe
+UFE = frontend
 
 ####################################################################
 # Lines below here should not be edited
@@ -119,7 +119,7 @@ all: $(UFE) midlibkafka kafka_control
 $(UFE): $(LIB) $(LIB_DIR)/mfe.o $(DRIVER).o $(UFE).c $(SRC_DIR)/cnaf_callback.c
 	$(CC) -DHAVE_CAMAC $(CFLAGS) $(OSFLAGS) -o $(UFE) $(UFE).c \
 	$(SRC_DIR)/cnaf_callback.c $(DRIVER).o  $(LIB_DIR)/mfe.o $(LIB) \
-	$(LDFEFLAGS) $(LIBS)
+	$(LDFEFLAGS) $(LIBS) midlibkafka.o
 
 $(DRIVER).o: $(DRV_DIR)/$(DRIVER).c
 	$(CC) $(CFLAGS) $(OSFLAGS) -c -o $(DRIVER).o $(DRV_DIR)/$(DRIVER).c

@@ -43,6 +43,21 @@ char* json_build_errors(char **error)
     return json_object_to_json_string(jobj);
 }
 
+char* json_build_data_topics(char **data_topics)
+{
+    /*Creating a json object*/
+    json_object *jobj = json_object_new_object();
+
+    json_object *jstring_cat = json_object_new_string("data_topics");
+    json_object *jstring_topics = json_object_new_string(*data_topics);
+
+    /*Form the json object*/
+    json_object_object_add(jobj,"category", jstring_cat);
+    json_object_object_add(jobj,"names", jstring_topics);
+
+    return json_object_to_json_string(jobj);
+}
+
 void produce_kafka_msg(rd_kafka_t *rk_p, rd_kafka_topic_t *rkt, char *msg)
 {
     if(rd_kafka_produce(rkt, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY,  msg, strlen(msg), NULL, 0, NULL) == -1 )

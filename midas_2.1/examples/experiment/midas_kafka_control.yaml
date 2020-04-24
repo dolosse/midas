@@ -10,3 +10,4 @@ kafka:
         manage: rbs_midas_manage
         errors: rbs_midas_errors
         feedback: rbs_midas_feedback
+        data: rbs_midas_data

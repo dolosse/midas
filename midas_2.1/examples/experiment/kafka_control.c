@@ -113,7 +113,7 @@ int main()
             }
 
             char * feedback_msg = json_build_feedback(&run_state, &evt_rate, &kB_rate, &events, &feedback);
-            char *error_msg = json_build_errors(&error);
+            char *error_msg =json_build_errors(&error);
 
             /* send messages to kafka */
             produce_kafka_msg(rk_p, rkt_e, error_msg);
@@ -267,7 +267,6 @@ INT command_execute(const char* command, int new_run_number)
 INT kafka_consumer_setup()
 {
     /* specify kafka config options */
-    groupid = "rbs_control";
     topics = &topic_control;
     topic_cnt = 1;
     conf = rd_kafka_conf_new();
@@ -406,7 +405,7 @@ INT midas_info(char *mid_equip, char **run_state, double *evt_rate, double *kB_r
 
     sprintf(event_rate_path, "/Equipment/%s/Statistics/Events per sec.", mid_equip);
     sprintf(kB_rate_path, "/Equipment/%s/Statistics/kBytes per sec.", mid_equip);
-    sprintf(events_path, "/Equipment/%s/Events sent", mid_equip);
+    sprintf(events_path, "/Equipment/%s/Statistics/Events sent", mid_equip);
 
 
     size=sizeof(odb_events);
@@ -439,7 +438,7 @@ INT yaml_config_read()
     int error = 0;
     char value[25];
     int bootstrap_found = 0, host_found = 0, expt_found =0, control_found = 0, manage_found = 0,
-        errors_found = 0, feedback_found = 0, mid_equip_found = 0;
+        errors_found = 0, feedback_found = 0, mid_equip_found = 0, gid_found = 0;
 
     file = fopen("midas_kafka_control.yaml", "rb");
     assert(file);
@@ -515,6 +514,13 @@ INT yaml_config_read()
                 printf("feedback value is: %s\n", topic_feedback);
                 feedback_found++;
             }
+            if (gid_found == 1)
+            {
+                groupid = (char *)malloc(strlen(value)+1);
+                strcpy(groupid,value);
+                printf("groupid value is: %s\n", groupid);
+                gid_found++;
+            }
 
             /* find kafka broker and topics, experiment name, and host name */
             if (strcmp(value,"bootstrap_servers") == 0)
@@ -533,7 +539,8 @@ INT yaml_config_read()
                 errors_found++;
             if (strcmp(value,"feedback") == 0)
                 feedback_found++;
-
+            if (strcmp(value,"group_id") == 0)
+                gid_found++;
         }
 
         done = (event.type == YAML_STREAM_END_EVENT);

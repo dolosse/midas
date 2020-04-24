@@ -9,6 +9,7 @@
 
 char* json_build_feedback(char **run_state, double *evt_rate, double *kB_rate, double *events, char **feedback);
 char* json_build_errors(char **error);
+char* json_build_data_topics(char **data_topics);
 void produce_kafka_msg(rd_kafka_t *rk_p, rd_kafka_topic_t *rkt, char * msg);
 void kafka_shutdown(rd_kafka_t *rk, rd_kafka_t *rk_p, rd_kafka_topic_t *rkt_e, rd_kafka_topic_t *rkt_f);
 
